@@ -1,0 +1,24 @@
+{
+  "name": "vks",
+  "version": "1.0.0",
+  "description": "Minimal mediasoup two-device call demo",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "node server/index.js",
+    "dev:https": "USE_HTTPS=true node server/index.js",
+    "start": "node server/index.js",
+    "cert:generate": "bash ./scripts/generate-cert.sh"
+  },
+  "keywords": [
+    "mediasoup",
+    "webrtc",
+    "socket.io"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "mediasoup": "3.11.16",
+    "socket.io": "^4.8.1"
+  }
+}

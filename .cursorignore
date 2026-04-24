@@ -1,0 +1,16 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+.obsidian/
+Templates/
+Attachments/
+assets/
+Excalidraw/
+Daily Notes/
+Journal/
+Archive/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.pdf
+*.mp4
+*.mov

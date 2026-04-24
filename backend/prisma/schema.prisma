@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChatType {
+  private
+  group
+  meeting
+}
+
+enum ChatMemberRole {
+  owner
+  admin
+  member
+}
+
+enum MessageType {
+  text
+}
+
+model role {
+  id    Int    @id @default(autoincrement()) @db.UnsignedInt
+  title String @db.VarChar(100)
+  users Auth[]
+}
+
+model Auth {
+  id                        Int       @id @default(autoincrement()) @db.UnsignedInt
+  username                  String    @unique(map: "username") @db.VarChar(255)
+  password                  String    @db.VarChar(255)
+  firstname                 String?   @db.VarChar(100)
+  lastname                  String?   @db.VarChar(100)
+  middlename                String?   @db.VarChar(100)
+  position                  String?   @db.VarChar(100)
+  department                String?   @db.VarChar(100)
+  email_internal            String?   @db.VarChar(50)
+  email_external            String?   @db.VarChar(50)
+  phone_work                String?   @db.VarChar(20)
+  phone_personal            String?   @db.VarChar(20)
+  refreshToken              String?   @db.VarChar(1024)
+  refreshTokenId            String?   @db.VarChar(36)
+  wrong_attempts            Int       @default(0) @db.TinyInt
+  last_seen                 DateTime? @db.DateTime(0)
+  last_activity             DateTime? @db.DateTime(0)
+  created_at                DateTime? @db.DateTime(0)
+  updated_at                DateTime? @db.DateTime(0)
+  ipAddress                 String?   @db.VarChar(39)
+  last_password_change_date DateTime  @db.DateTime(0)
+
+  roleId Int?  @map("role_id") @db.UnsignedInt
+  role   role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  createdChats       Chat[]               @relation("ChatCreator")
+  chatMemberships    ChatMember[]         @relation("ChatMemberUser")
+  sentMessages       Message[]            @relation("MessageSender")
+  hostedMeetings     Meeting[]            @relation("MeetingHost")
+  meetingInvitations MeetingParticipant[]
+}
+
+model Chat {
+  id              Int       @id @default(autoincrement()) @db.UnsignedInt
+  type            ChatType
+  title           String?   @db.VarChar(255)
+  created_by      Int       @db.UnsignedInt
+  created_at      DateTime? @db.DateTime(0)
+  updated_at      DateTime? @db.DateTime(0)
+  last_message_id Int?      @db.UnsignedInt
+
+  creator      Auth          @relation("ChatCreator", fields: [created_by], references: [id], onDelete: Cascade)
+  members      ChatMember[]
+  messages     Message[]
+  meetings     Meeting[]
+  callSessions CallSession[]
+}
+
+model ChatMember {
+  id                   Int            @id @default(autoincrement()) @db.UnsignedInt
+  chat_id              Int            @db.UnsignedInt
+  user_id              Int            @db.UnsignedInt
+  role                 ChatMemberRole @default(member)
+  joined_at            DateTime?      @db.DateTime(0)
+  last_read_message_id Int?           @db.UnsignedInt
+  last_read_at         DateTime?      @db.DateTime(0)
+
+  chat Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  user Auth @relation("ChatMemberUser", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([chat_id, user_id])
+  @@index([user_id])
+  @@index([chat_id])
+}
+
+model Message {
+  id         Int         @id @default(autoincrement()) @db.UnsignedInt
+  chat_id    Int         @db.UnsignedInt
+  sender_id  Int         @db.UnsignedInt
+  text       String?     @db.LongText
+  type       MessageType @default(text)
+  created_at DateTime?   @db.DateTime(0)
+  edited_at  DateTime?   @db.DateTime(0)
+
+  chat   Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  sender Auth @relation("MessageSender", fields: [sender_id], references: [id], onDelete: Cascade)
+
+  @@index([chat_id, id])
+  @@index([sender_id])
+}
+
+model Meeting {
+  id                  Int                         @id @default(autoincrement()) @db.UnsignedInt
+  title               String                      @db.VarChar(255)
+  description         String?                     @db.Text
+  chatId              Int?                        @map("chat_id") @db.UnsignedInt
+  chat                Chat?                       @relation(fields: [chatId], references: [id], onDelete: SetNull)
+  hostId              Int                         @map("host_id") @db.UnsignedInt
+  host                Auth                        @relation("MeetingHost", fields: [hostId], references: [id])
+  startsAt            DateTime                    @map("starts_at") @db.DateTime(0)
+  durationMin         Int                         @map("duration_min")
+  rrule               String?                     @db.VarChar(512)
+  recurrenceEndsAt    DateTime?                   @map("recurrence_ends_at") @db.DateTime(0)
+  inviteToken         String                      @unique(map: "meeting_invite_token") @map("invite_token") @db.VarChar(32)
+  createdAt           DateTime                    @default(now()) @map("created_at") @db.DateTime(0)
+  cancelledAt         DateTime?                   @map("cancelled_at") @db.DateTime(0)
+  lastReminderFiredAt DateTime?                   @map("last_reminder_fired_at") @db.DateTime(0)
+  lastStartFiredAt    DateTime?                   @map("last_start_fired_at") @db.DateTime(0)
+  participants        MeetingParticipant[]
+  overrides           MeetingOccurrenceOverride[]
+  sessions            CallSession[]
+
+  @@index([chatId, startsAt])
+  @@index([hostId])
+}
+
+model MeetingParticipant {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  meetingId Int      @map("meeting_id") @db.UnsignedInt
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    Int      @map("user_id") @db.UnsignedInt
+  user      Auth     @relation(fields: [userId], references: [id])
+  invitedAt DateTime @default(now()) @map("invited_at") @db.DateTime(0)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
+}
+
+model MeetingOccurrenceOverride {
+  id             Int       @id @default(autoincrement()) @db.UnsignedInt
+  meetingId      Int       @map("meeting_id") @db.UnsignedInt
+  meeting        Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  occurrenceDate DateTime  @map("occurrence_date") @db.DateTime(0)
+  cancelled      Boolean   @default(false)
+  newStartsAt    DateTime? @map("new_starts_at") @db.DateTime(0)
+  newTitle       String?   @map("new_title") @db.VarChar(255)
+
+  @@unique([meetingId, occurrenceDate])
+}
+
+model CallSession {
+  id                   Int       @id @default(autoincrement()) @db.UnsignedInt
+  chatId               Int       @map("chat_id") @db.UnsignedInt
+  chat                 Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  meetingId            Int?      @map("meeting_id") @db.UnsignedInt
+  meeting              Meeting?  @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  startedAt            DateTime  @map("started_at") @db.DateTime(0)
+  endedAt              DateTime? @map("ended_at") @db.DateTime(0)
+  participantUsernames Json      @map("participant_usernames")
+
+  @@index([chatId, startedAt])
+}
